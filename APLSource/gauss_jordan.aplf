@@ -1,0 +1,15 @@
+ gauss_jordan←{⎕IO ⎕ML←0 1               ⍝ Gauss-Jordan elimination.
+
+     elim←{                              ⍝ elimination of row/col ⍺
+         p←⍺+{⍵⍳⌈/⍵}|⍺↓⍵[;⍺]             ⍝ index of pivot row
+         swap←⊖@⍺ p⊢⍵                    ⍝ ⍺th and pth rows exchanged
+         mat←swap[⍺;⍺]÷⍨@⍺⊢swap          ⍝ col diagonal reduced to 1
+         mat-(mat[;⍺]×⍺≠⍳≢⍵)∘.×mat[⍺;]   ⍝ col off-diagonals reduced to 0
+     }
+
+     0::⎕SIGNAL ⎕EN                      ⍝ pass back error to caller
+
+     ⍺←=/↑⍳⍴⍵                            ⍝ id matrix for monadic case
+
+     (⍴⍺)⍴(0 1×⍴⍵)↓↑elim/(⌽⍳⌊/⍴⍵),⊂⍵,⍺   ⍝ elimination/ ··· 2 1 0 (⍵,⍺)
+ }

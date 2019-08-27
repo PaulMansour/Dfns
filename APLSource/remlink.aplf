@@ -1,0 +1,4 @@
+ remlink←{           ⍝ Graph ⍺ without edge ⍵.
+     fm to←⍵         ⍝ edge
+     ~∘to¨@fm⊢⍺      ⍝ graph without edge ⍵.
+ }

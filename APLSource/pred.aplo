@@ -1,0 +1,3 @@
+ pred←{⎕IO ⎕ML←1    ⍝ Partitioned reduction.
+     ↑⍺⍺/¨(⍺/⍳⍴⍺)⊆⍵
+ }

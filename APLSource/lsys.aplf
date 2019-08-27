@@ -1,0 +1,5 @@
+ lsys←{                      ⍝ Lindenmayer L-system expansion.
+     2≥|≡⍺:(⊂,⍺)∇ ⍵          ⍝ single production: enclose
+     fms tos←↓⍉↑,⍺           ⍝ productions
+     ∊(⊂(fms,⍵)⍳⍵)⌷tos,⍵     ⍝ substitutions
+ }

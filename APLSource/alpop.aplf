@@ -1,0 +1,7 @@
+ alpop←{                     ⍝ Leftmost value for key ⍵ from list ⍺
+     keys vals←⍺             ⍝ keys vector and corresponding values
+     indx←keys⍳⊂⍵            ⍝ index of first key ⍵ in list ⍺
+     val←indx⊃vals           ⍝ value for key ⍵
+     list←(⊂indx≠⍳⍴keys)/¨⍺  ⍝ reduced list
+     val list                ⍝ :: val list ← list ∇ key
+ }

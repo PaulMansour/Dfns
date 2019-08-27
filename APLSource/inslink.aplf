@@ -1,0 +1,4 @@
+ inslink←{           ⍝ Graph ⍺ with new edge ⍵.
+     fm to←⍵         ⍝ edge
+     ∪∘to¨@fm⊢⍺      ⍝ graph with new edge ⍵.
+ }

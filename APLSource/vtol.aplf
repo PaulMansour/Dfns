@@ -1,0 +1,4 @@
+ vtol←{          ⍝ Nested vector to lines.
+     ⍺←⎕UCS 13   ⍝ default separator: new-line.
+     ↑,/⍵,¨⊂⍺    ⍝ ⍺-separated vector items.
+ }

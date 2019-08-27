@@ -1,0 +1,59 @@
+ externs←{                               ⍝ External names referenced by fn ⍵.
+
+     exts←{                              ⍝ external references
+         1≠≡⍵:⍺ ∇ foldl ⍵,⊂,'⋄'          ⍝ inner fn: traverse
+         X L P←⍺                         ⍝ Externals Locals Pending
+         (⊂⍵)∊L:⍺                        ⍝ already local: no change
+         0≤⎕NC ⍵~'⍺∇⍵':X L(P∪⊂⍵)         ⍝ name: pending
+         ⍵≡,'←':X(L∪P)⍬                  ⍝ assignment: pending → local
+         ~(⊃⍵)∊'⋄:':⍺                    ⍝ more in segment: continue
+         (X∪P)L ⍬                        ⍝ end-of-segment: pending → external
+     }                                   ⍝ :: [envt] ← [envt] ∇ func
+
+     nest←{                              ⍝ nested tokens for nested functions
+         ⍺←+\1 ¯1 0[(,¨'{}')⍳⍵]          ⍝ {}-nesting depths
+         outer←⊃,(⊃⌽)                    ⍝ outermost tokens
+         inner←{(1↓¯1↓⍺)⍺⍺ 1↓¯1↓⍵}       ⍝ ⍺⍺ applied between outer {}s
+         '{}'≡∊outer ⍵:⊂(⍺-1)∇ inner ⍵   ⍝ recursive nesting of function body
+         0∧.=⍺:⍵                         ⍝ no inner fns: done
+         lft←(⍵∊⊂,'{')∧⍺=1               ⍝ top-level left braces
+         rgt←0,¯1↓(⍵∊⊂,'}')∧⍺=0          ⍝ tokens following top-lvl right braces
+         cut←1++\lft∨rgt                 ⍝ chopping at inner {} sections
+         ⊃,/(cut⊆⍺)∇¨sort cut⊆⍵          ⍝ diamond and guard segs
+     }                                   ⍝ :: func ← ∇ [tokn]
+
+     sort←{                              ⍝ inner functions deferred until last
+         ord←⍋⊃¨⍺                        ⍝ depth-of-segment order
+         deps←(⊂ord)⌷⍺                   ⍝ depths
+         segs←(⊂ord)⌷⍵                   ⍝ code segments
+         deps ⍺⍺ segs                    ⍝ nesting per segment
+     }                                   ⍝ :: func ← [[deps]] ∇ [[toks]]
+
+     clean←{                             ⍝ de-fluffing of tokens vectors
+         join←{¯1↓⊃,/⍵,¨⊂⊂,'⋄'}          ⍝ diamonds for newlines
+         rmcm←{('⍝'≠⊃¨⍵)/⍵}              ⍝ without comments
+         rmps←~∘(,¨'()')                 ⍝ without parens: '(a b)←' → 'a b←'
+         ''glue foldl rmps rmcm join ⍵   ⍝ clean token vector
+     }                                   ⍝ :: [tokn] ← ∇ [[tokn]]
+
+     glue←{                              ⍝ gluing of compound name tokens a.b.c
+         '.'≠⊃⊃⌽⍺:⍺,⊂⍵                   ⍝ not a '.' token: continue
+         ~(⊃⍵)∊alph:⍺,⊂⍵                 ⍝ not a dotted name: continue
+         (¯2↓⍺),⊂∊(¯2↑⍺),⍵               ⍝ dotted name: 'a.' 'b' → 'a.b'
+     }                                   ⍝ :: [tokn] ← [tokn] ∇ tokn
+
+     foldl←{⊃⍺⍺⍨/(⌽⍵),⊂⍺}                ⍝ fold left
+
+     alph←{(0≤⎕NC⍪⍵)/⍵}⎕AV~'⍺⍵∇'         ⍝ start-of-name chars
+
+     envt←⍬ ⍬ ⍬                          ⍝ Externs Locals Pending
+     ⍺←0 ⋄ toks←60⌶,¨,⊆⎕NR⍣(~⍺)⊢⍵,⍺↑'⋄'  ⍝ tokens from nested rep'n of function
+     ⊃envt exts foldl nest clean toks    ⍝ external names
+
+    ⍝ 0 externs :: [name] ← ∇ name      ⍝ names referenced by dfn ⍵
+    ⍝ 1 externs :: [name] ← ∇ func      ⍝ names referenced by ⎕CR form ⍵
+    ⍝      func := [tokn] | [func]      ⍝ function body: nested tokens vectors
+    ⍝      tokn := ⍞                    ⍝ token, eg '⍺⍺' '⎕CR' '+'
+    ⍝      envt := [name] [name] [name] ⍝ (externs locals pending)-triple
+    ⍝      name := ⍞                    ⍝ name, eg 'test'
+ }

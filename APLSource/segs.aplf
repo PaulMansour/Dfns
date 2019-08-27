@@ -1,0 +1,3 @@
+ segs←{          ⍝ ⍺-separated segments of vector ⍵.
+     (~⍵∊⍺)⊆⍵
+ }

@@ -1,0 +1,81 @@
+ le←{⎕ML←1                               ⍝ Total array ordering (TAO) comparison.
+
+     acmp←{                              ⍝ array comparison.
+         ≡/⍵:¯1                          ⍝ match: equal.
+         ~≡/⍴∘⍴¨⍵:∇ xrnk ⍵               ⍝ ranks differ: reshape with 1-axes.
+         ~≡/⍴¨⍵:∇ xshp ⍵                 ⍝ shapes differ: stretch with fills.
+         0∊⍴⊃⍵:∇⊃¨⍵                      ⍝ null: comparison of proto items.
+         ~⍵≡⊃¨⍵:∇ halves,¨⍵              ⍝ non-atomic: item-wise comparison.
+
+        ⍝ comparison of atomic items:
+
+         types←type¨⍵                    ⍝ item types: char, number, ...
+         ≠/types:≤/types                 ⍝ types differ: compare.
+         3∧.=types:∇ fixor¨⍵             ⍝ ⎕ORs: comparison of fixed items.
+         1∧.=types:ncmp ⍵                ⍝ simple numbs: comparison.
+         0∧.=types:≤/⍋⍵                  ⍝ simple chars: ⍋-style comparison.
+
+        ⍝ comparison of refs:
+
+         ≢/ot←⍵.⎕WG⊂'Type':∇ ot          ⍝ object-type mismatch: order on types
+
+         ∧/⍵∊¨⍺⍺:∇ ⍺⍺⍳¨⍺⍺                ⍝ cycles in both: cycle lengths (NN).
+
+         unms←⍵.(~∘' '¨↓⎕NL⍳10)          ⍝ user-supplied names.
+         ucls←⍵.⎕NC↑¨unms                ⍝ and their name-classes.
+         uvls←⍵ valu¨¨unms               ⍝ value of each symbol in each space.
+
+         ucmp←zip¨zip unms ucls uvls     ⍝ name/class/value triples.
+         scmp←⍵.(⎕CT ⎕DIV ⎕IO ⎕ML ⎕PP ⎕RL ⎕RTL)  ⍝ system variable values.
+         pcmp←⍵.(⎕WG¨⎕WG'PropList')      ⍝ property values.
+
+         (⍺⍺∪¨⍵)∇∇ zip ucmp scmp pcmp    ⍝ cmp of user-vals; sysvars; props.
+     }
+
+     xrnk←{                              ⍝ stretch arrays of differing rank.
+         rnk←⊃⌈/⍴∘⍴¨⍵                    ⍝ new rank.
+         ones←rnk⍴1                      ⍝ sufficient 1-padding.
+         shps←(-rnk)↑¨ones∘,∘⍴¨⍵         ⍝ new shapes.
+         ors←{1 ⍬≡(≡⍵)(⍴⍵)}¨⍵            ⍝ must enclose ⎕or for reshape.
+         new←shps⍴¨ors{(⊂⍣⍺)⍵}¨⍵         ⍝ extended arrays.
+         zip new(⍴∘⍴¨⍵)                  ⍝ (⍺ rnk)(⍵ rnk)
+     }
+
+     xshp←{                              ⍝ stretch arrays of differing shape
+         shp←⊃⌈/⍴¨⍵                      ⍝ new shape
+         pad←{⍵@(⍳⍴⍵)⊢⍺⍴⎕UCS 0}          ⍝ padding of ref-array(s)
+         zip(shp∘pad¨⍵)(⍴¨⍵)             ⍝ (⍺ shp)(⍵ shp)
+     }
+
+     type←{                              ⍝ types of depth-0 items:
+         1 0≡(≡⍵),⍴⍴⍵:3                  ⍝ ⎕OR: 3
+         9=⎕NC'⍵':2                      ⍝ ref: 2
+         0=⊃0⍴⍵                          ⍝ num: 1, char: 0
+     }
+
+     ncmp←{                              ⍝ comparison of numbers.
+         0>⊃(9 11○-/⍵)~0                 ⍝ real part trumps imaginary part.
+     }
+
+     fixor←{                             ⍝ fix of ⎕OR item in tmp space.
+         11::⎕NS ⍵                       ⍝ ⎕OR of namespace.
+         ⎕NR(⎕NS'').⎕FX ⍵                ⍝ ⎕OR of fn/op.
+     }
+
+     valu←{                              ⍝ referent value of name ⍺.⍵.
+         ⍵≡'':''                         ⍝ ignore null name.
+         3 4∨.=⍺.⎕NC ⍵:⍺.⎕NR ⍵           ⍝ fn/op: nested rep.
+         ⍺.⍎⍵                            ⍝ var or ref: value.
+     }
+
+     zip←{↓⍉↑⍵}                          ⍝ items interleaved.
+
+     halves←{                            ⍝ compare vector halves.
+         n←⌊(≢⊃⍵)÷2                      ⍝ half-way point.
+         n=0:⍺⍺⊃¨⍵                       ⍝ compare single items
+         ¯1≠c←⍺⍺ n↑¨⍵:c                  ⍝ first halves differ: done.
+         ⍺⍺ n↓¨⍵                         ⍝ comparison of second halves.
+     }
+
+     |⍬ ⍬ acmp ⍺ ⍵                       ⍝ ⍺≤⍵
+ }

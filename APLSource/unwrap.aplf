@@ -1,0 +1,3 @@
+ unwrap←{                ⍝ Replace <LF> with blanks.
+     (~⍵∊⎕UCS 13 133){⍺\⍺/⍵}⍵
+ }

@@ -1,0 +1,9 @@
+ in←{                        ⍝ Locations of item ⍺ in array ⍵.
+     D←|≡item←⍺              ⍝ (depth of) sought item
+     ⍬{                      ⍝ ⍺ is pick-path
+         item≡⍵:,⊂⍺          ⍝ match: path
+         D≥|≡⍵:⍬             ⍝ give up
+         paths←⍺∘,∘⊂¨⍳⍴⍵     ⍝ extended paths
+         ⊃,/,paths ∇¨⍵       ⍝ paths in subarrays of ⍵
+     }⍵                      ⍝ ⍵ is searched-in array
+ }

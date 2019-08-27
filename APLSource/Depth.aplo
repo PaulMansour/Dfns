@@ -1,0 +1,9 @@
+ Depth←{                                 ⍝ Apply fn ⍺⍺ at depths ⍵⍵.
+     ⍺←⊣
+     depths←⌽3⍴⌽⍵⍵                       ⍝ expand right operand
+     m l r←depths-⍨(|≡¨⍵ ⍺ ⍵)×depths≥0   ⍝ ¨ digs top-down
+     max encl←'¨⊂'⍴¨⍨l(⌈,∘|-)r           ⍝ find number of ¨s and ⊂s
+     el er←(1 0=l≤r)/¨⊂encl              ⍝ where do the ⊂s go?
+     0::⎕SIGNAL ⎕EN                      ⍝ bubble errors up
+     ⍎'(',el,'⍺)⍺⍺',max,er,'⍵'           ⍝ do it!
+ }

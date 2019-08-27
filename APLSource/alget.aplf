@@ -1,0 +1,4 @@
+ alget←{                 ⍝ Value for key ⍵ in association list ⍺.
+     keys vals←⍺         ⍝ keys vector and corresponding values
+     (keys⍳⊂⍵)⊃vals      ⍝ :: val ← list ∇ key
+ }

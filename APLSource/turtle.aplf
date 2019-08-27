@@ -1,0 +1,202 @@
+ turtle←{⎕ML←1                               ⍝ Flying-turtle graphics.
+
+     ⍺←'F=↑1 +=⌽¯90 -=⌽90 ×=⊖¯90 ÷=⊖90 ∧=⍋¯90 ∨=⍋90'     ⍝ default definitions
+
+     cmds←{                                  ⍝ turtle commands from macro vector
+         segs←{(~⍵∊⍺)⊆⍵}                     ⍝ ⍺-separated segments of vector ⍵
+         trim←~∘(⊂'')                        ⍝ without null segments
+         names vals←↓⍉↑'='segs¨trim' 'segs ⍺ ⍝ defs ⍺ separated at '=' after ' '
+         rads←{⍺='↑':⍺ ⍵ ⋄ ⍺,○⍵÷180}         ⍝ degrees to radians
+         pair←{(⊃⍵)rads⍎1↓⍵}                 ⍝ command and its numeric argument
+         fms tos←(∊names)(pair¨vals),¨⊂'[]'  ⍝ turtle commands dictionary
+         (⊂fms⍳⍵∩fms)⌷tos                    ⍝ turtle commands from macro vector
+     }                                       ⍝ [tcmd] ← defns ∇ [mcmd]
+
+     draw←{                                  ⍝ polygons from turtle commands
+
+         step←{cmd arg←⍺                     ⍝ one turtle command:
+             '↑'≡cmd:arg move ⍵              ⍝ ↑⍵ forward move
+             '⌽'≡cmd:arg turn ⍵              ⍝ ⌽⍵ right turn
+             '⊖'≡cmd:arg roll ⍵              ⍝ ⊖⍵ clockwise roll
+             '⍋'≡cmd:arg pitch ⍵             ⍝ ⍋⍵ upwards pitch
+             '['≡cmd:push ⍵                  ⍝ [  turtle state push
+             ']'≡cmd:pop ⍵                   ⍝  ] turtle state pop
+         }                                   ⍝ :: state ← cmd ∇ state
+
+         move←{(path paths)attd stack←⍵      ⍝ forward ⍺ units
+             next←(⊃path)+⍺×⊃attd            ⍝ next position
+             ((next path)paths)attd stack    ⍝ extended path
+         }                                   ⍝ :: state ← units ∇ state
+
+         turn←{paths(head bank)stack←⍵       ⍝ right ⍺ radians
+             hnew←(⍺,bank)rotn head          ⍝ new heading
+             paths(hnew bank)stack           ⍝ new state
+         }                                   ⍝ :: state ← rads ∇ state
+
+         roll←{paths(head bank)stack←⍵       ⍝ clockwise ⍵ radians
+             bnew←((-⍺),head)rotn bank       ⍝ new banking
+             paths(head bnew)stack           ⍝ new state
+         }                                   ⍝ :: state ← rads ∇ state
+
+         pitch←{paths(head bank)stack←⍵      ⍝ upwards ⍵ radians
+             pax←((○0.5),head)rotn bank      ⍝ pitch axis normal to head & bank
+             attd←↓(⍺,pax)rotn↑head bank     ⍝ rotated head and bank vectors
+             paths attd stack                ⍝ new state
+         }                                   ⍝ :: state ← rads ∇ state
+
+         push←{points attd stack←⍵           ⍝ push turtle state
+             (posn path)paths←points         ⍝ current path and posn
+             points attd(posn attd stack)    ⍝ stacked posn and attitude
+         }                                   ⍝ :: state ← ∇ state
+
+         pop←{paths _(posn attd stack)←⍵     ⍝ pop turtle state
+             ((posn ⍬)paths)attd stack       ⍝ new path at popped state
+         }                                   ⍝ :: state ← ∇ state
+
+         paths←((0 0 0)⍬)0                   ⍝ first point on first path
+         attd←(0 1 0)(0 0 1)                 ⍝ heading and banking
+         stack←0                             ⍝ null branching-stack
+         ⊃⊃step/(⌽⍵),⊂paths attd stack       ⍝ list of polygon paths lists
+     }                                       ⍝ :: paths ← state ∇ cmds
+
+     rotn←{40 bits ⍵}{                       ⍝ ⍺-rotation of points ⍵
+         sax←2 1≡+/0 1∘.=|1↓⍺                ⍝ rotation around single axis?
+         sax:⍺ rot2 ⍵ ⋄ ⍺ rot3 ⍵             ⍝ quick 2D, or slower 3d, rotation
+     }                                       ⍝ :: pmat ← dirn ∇ pmat
+
+     rot2←{                                  ⍝ quicker 2D complex rotation
+         a u←(⊃⍺)(1↓⍺)                       ⍝ angle and direction
+         msk nsk←0 1=⊂|u                     ⍝ masks for rotation plane
+         dir←0 J⊃nsk/1 ¯1 1×u                ⍝ rotation direction ±0J1
+         R←{⍉↑9 11○⊂⍵}                       ⍝ real from complex array
+         new←msk\R(J/msk/⍵)×*a×dir           ⍝ new orientation via complex arith
+         new+nsk\nsk/⍵                       ⍝ rotated points
+     }                                       ⍝ :: pmat ← dirn ∇ pmat
+
+     rot3←{                                  ⍝ slower 3D quaternion rotation
+         a u←(⊃⍺)(1↓⍺)                       ⍝ angle and direction
+         C←{J/2 2⍴(⍤1)⍵}                     ⍝ complex (S,2) from real (S,4)
+         R←{,⍤2⊢9 11∘.(○⍨)⍨⍵}                ⍝ R 3J4 → 3 4  real parts
+         conj←↑((+⊣),(-⊢))/                  ⍝ H-conjugate +⍵ :: [H] ← ∇ [H]
+         q←C(2○a÷2),u×1○a÷2                  ⍝ rotation quaternion
+         0 1 1 1/R q mul(C 0,⍵)mul conj q    ⍝ q×⍵×q*
+     }                                       ⍝ :: pmat ← dirn ∇ pmat
+
+     mul←{                                   ⍝ quaternion product ⍺×⍵
+         (a b)(c d)←1⊂¨⍺ ⍵                   ⍝ Caley-Dixon
+         ⊃,/((a×c)-b×+d)((d×a)+b×+c)         ⍝   construction
+     }                                       ⍝ :: [H] ← [H] ∇ [H]
+
+     J←{⍺+⍵×0J1}                             ⍝ 3 J 4 → 3J4
+     bits←{(2*-⍺)×⌊0.5+⍵×2*⍺}                ⍝ rounded to ⍺ bits
+
+     points←{                                ⍝ poly Points matrices from lists
+
+         lines←{                             ⍝ vector of lines from list of lists
+             matr←{((≢⍵)÷⍺)⍺⍴⍵}              ⍝ ⍺-column matrix from vector
+             vect←{0≡h t←⍵:⍺ ⋄ (⍺,⊂h)∇ t}    ⍝ vector from list
+             trim←{(1<≢¨⍵)/⍵}                ⍝ without single-point polygons
+             line←{↑¨⊃,/⍵}{2,/(⊂¨)⌽↓⍵}¨      ⍝ individual poly lines
+             line trim 3 matr∘∊¨⌽⍬ vect ⍵    ⍝ vector of raw polygon lines
+         }                                   ⍝ :: [pmat] ← ∇ List posn
+
+         centred←{                           ⍝ centred in window
+             pts←⊃⍪/⍵                        ⍝ collected points matrix
+             0∧.=⊢/pts:⍵-⍤1¨⊂÷∘2(⌈⌿+⌊⌿)pts   ⍝ 2D: envelope centred
+             ⍵-⍤1¨⊂pts⌹(≢pts)⍴1              ⍝ 3D: mid point centred
+         }                                   ⍝ :: [pmat] ← ∇ [pmat]
+
+         stretched←{                         ⍝ stretched to fit ⍺% of window
+             pts←⊃⍪/⍵                        ⍝ collected points matrix
+             0∧.=⊢/pts:⍵×⍺÷⌈/(⌈⌿-⌊⌿)pts      ⍝ 2D: size of enclosing square
+             ⍵×⍺÷⌈/(+/(pts×2)*2)*0.5         ⍝ 3D: diameter of enclosing sphere
+         }                                   ⍝ :: [pmat] ← % ∇ [pmat]
+
+         ⍺ stretched centred lines ⍵         ⍝ image adjusted to fit window
+     }                                       ⍝ :: [pmat] ← % ∇ List posn
+
+     image←{                                 ⍝ display of turtle path
+
+         poly←{                              ⍝ polygon object
+             pps←'Sizeable' 'Moveable' 'SysMenu' 'MaxButton' 'MinButton' 'Border'
+             f←⎕NEW'Form'({⍵ 0}¨pps)         ⍝ borderless containing-form
+             f.(Posn Size)←⍵                 ⍝ form placement: screen top right
+             f.Coord←'Pixel'                 ⍝ change prop
+             f.(Size←2/720⌊⌈/Size)           ⍝ make form square, max 720 pixels
+             f.Coord←'User'                  ⍝ restore proportional coords
+             f.onKeyPress←'twist'            ⍝ image-rotation callback
+             a←f.⎕NEW⊂'Static'               ⍝ white backdrop
+             a.(YRange XRange)←1 ¯1×⊂50 ¯50  ⍝ +/- 50 square
+             a.(Posn Size)←(0 0)(100 100)    ⍝ occupies whole form
+             points←'Points'(0 2⍴0)          ⍝ initially 0-sided polygon
+             lwidth←'Lwidth' 4               ⍝ slightly thicker lines
+             a.⎕NEW'Poly'(points lwidth)     ⍝ polygon object
+         }                                   ⍝ :: Static ← ∇ Posn Size
+
+         twist←(○÷¯180÷5){form msg key←3↑⍵   ⍝ 5° image-rotation callback
+             key≡'EP':⎕NQ form'Close'        ⍝ callback: Esc to quit
+             D=2:                            ⍝ 2D: no twisting or zooming
+             put←{pp.(Points FCol)←colour ⍺} ⍝ visible 2D projection
+             zoom←{PNTS put Z∘←50⌊Z+⍵×10}    ⍝ zoom ±10 units                 !!!
+             |z←('bf'⍳⊂key)⊃¯1 1 0:zoom z    ⍝ b:backwards f:forwards
+             keys←('UDLR',¨'C'),'zx'         ⍝ ijk-rotation keys
+             dirs←2/=∘⊂⍨⍳3                   ⍝ directions 1 0 0, 0 1 0, 0 0 1
+             0≡dirn←(keys⍳⊂key)⊃dirs,0:      ⍝ chosen direction ignoring bad key
+             rads←⍺⍺×1-2×(⊃key)∊'LUz'        ⍝ +/- value
+             PNTS put PNTS rot2¨⍨←⊂rads,dirn ⍝ display of updated 3D points   !!!
+         }                                   ⍝ :: Form ∇ msg
+
+         colour←{                            ⍝ coloured, orientated lines
+             proj←{⌽¨2↑⍤1¨pers ⍵}            ⍝ projection onto x-y plane
+             pers←{⍵×⍤1 0¨0.998*⊢/¨⍵-Z-50}   ⍝ hint of perspective
+             D=2:(proj ⍵)(0 0 0∘⊣¨⍵)         ⍝ 2D: all black lines
+             depth←(⊢-⌊/)((+⌿÷≢)⊢/)¨         ⍝ depth of line mid-points
+             greys←{3⍴¨⌊⍵×192÷⌈/⍵}           ⍝ grey lines: 0 to 192, near to far
+             ~'⌹'∊S:(proj ⍵)(greys depth ⍵)  ⍝ mono: lines and grey shades
+             sepr←{(⊂¨yrot 7÷60)rot2¨¨⊂⍵}    ⍝ 7cm @ 60cm separation of images
+             yrot←{(¯3○⍵÷¯2 2),¨⊂0 1 0}      ⍝ rotations around y-axis
+             zoom←{⍵-⍤1¨⊂¯3↑⍺}               ⍝ zoomed in by ⍺ units
+             pnts←(-Z)zoom¨sepr Z zoom ⍵     ⍝ separated anaglyph-3D images
+             clrs←(0 255 255)(255 0 0)       ⍝ left and right colours
+             ,∘↑¨(proj¨pnts)(pnts⊢¨∘⊂¨clrs)  ⍝ points and colours
+         }{                                  ⍝ :: [pnts] [colr] ← [mcmd] ∇ [pmat]
+             (⊂⍒+/¨⊢/¨⍵)⌷⍵                   ⍝ sorted far to near, unless tracing
+         }⍣(~'⎕'∊S)                          ⍝ :: [pmat] ← ∇ [pmat]
+
+         put←{pp.(FCol Points FCol)←(⊂⊂⍬),⍵} ⍝ rendering of polygon points
+         tcput←put⍨∘⎕DL∘(5÷≢⍵)               ⍝ puts spread over 5s if tracing
+         trace←{tcput∘{↓⍉↑,⍵}¨,\⊂¨↓⍉↑⍵}      ⍝ show turtle progress
+
+         D←3-0∧.=⊢/↑⍪/PNTS←⍵                 ⍝ image points and rank: 2 or 3D
+         Z←50                                ⍝ zoom distance for 3D anaglyph
+         pp←poly(1 50)(50 50)                ⍝ polygon in (top right) window
+         0⊣trace∘colour⍣('⎕'∊S)⊢⍵:           ⍝ optional display of progress
+         0⊣put colour ⍵:                     ⍝ poly lines and colours
+         PNTS⊣⎕DQ pp.##.##                   ⍝ ... until Esc to quit
+     }                                       ⍝ :: [pmat] ← trace ∇ [pmat]
+
+     S←'⎕⌹⌸'∩⍵                               ⍝ behaviour switches
+     lines←95 points draw ⍺ cmds ⍵~S         ⍝ vector of polygon lines
+     '⌸'∊S:lines                             ⍝ ⌸: points only, no display
+     1:PNTS←image lines                      ⍝ display of turtle path
+
+    ⍝ state     :=  paths attd stack        ⍝ drawing state
+    ⍝   paths   :=  List path               ⍝ list of polygon paths
+    ⍝     path  :=  List posn               ⍝ list of point positions
+    ⍝   attd    :=  head bank               ⍝ turtle attitude
+    ⍝     head  :=  dirn                    ⍝ heading: fwd direction for turtle
+    ⍝     bank  :=  dirn                    ⍝ banking: normal to heading
+    ⍝   stack   :=  posn attd stack         ⍝ coordinates stack for branching
+    ⍝ posn      :=  # # #                   ⍝ position in 3-space
+    ⍝ dirn      :=  # # #                   ⍝ unit vector: direction in 3-space
+    ⍝ dist      :=  #                       ⍝ scalar distance between points
+    ⍝ rads      :=  #                       ⍝ angle in radians
+    ⍝ colr      :=  # # #                   ⍝ colour: red green blue: 0-255
+    ⍝ pmat      :=  [;# # #]                ⍝ n×3 positions matrix
+    ⍝ pnts      :=  [;# #]                  ⍝ n×2 2D projection
+    ⍝ List ⍵    :=  ⍵ (List ⍵) | 0          ⍝ 0-terminated cons list of ⍵s
+    ⍝ cmds      :=  [tcmd arg | scmd]       ⍝ turtle commands vector
+    ⍝ tcmd      :=  '↑' | '⌽' | '⊖' | '⍋'   ⍝ cmds: forward turn roll pitch
+    ⍝   arg     :=  dist | rads             ⍝ turtle command argument
+    ⍝ scmd      :=  '[' | ']'               ⍝ stack command: push or pop
+ }

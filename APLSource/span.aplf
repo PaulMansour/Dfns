@@ -1,0 +1,10 @@
+ span←{                          ⍝ Breadth-first spanning tree for graph ⍺.
+     graph←⍺                     ⍝ ⍺ is graph vector.
+     (¯2+(⍳⍴⍺)∊⍵){               ⍝ ⍺: partial spanning tree.
+         ⍵≡⍬:⍺                   ⍝ no vertices: done.
+         next←graph[⍵]∩¨⊂⍸⍺=¯2   ⍝ untravelled edges
+         back←⍵+0×next           ⍝ back link per edge
+         tree←(∊back)@(∊next)⊢⍺  ⍝ partial spanning tree
+         tree ∇∪∊next            ⍝ advanced wave front
+     }⍵                          ⍝ ⍵: next wave of vertices to visit.
+ }

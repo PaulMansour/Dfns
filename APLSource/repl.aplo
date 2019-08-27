@@ -1,0 +1,11 @@
+ repl←{                  ⍝ Read-eval-print loop.
+     ⍺←4↑''              ⍝   default prompt
+     expr←(≢⍺)↓⍞⊣⍞←⍺     ⍝ read expression
+     expr≡,⍵:            ⍝   matches terminator: quit.
+     expr∧.=' ':⍺ ∇ ⍵    ⍝   blank line: ignore.
+     ⎕←⍺⍺{               ⍝ print
+         0::'Eh?'        ⍝   catching all errors
+         ⍺⍺ ⍵            ⍝ eval
+     }expr               ⍝   of expr
+     ⍺ ∇ ⍵               ⍝ loop
+ }

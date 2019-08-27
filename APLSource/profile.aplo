@@ -1,0 +1,21 @@
+ profile←{                                   ⍝ Performance profiling.
+     code←⎕CR¨⊆⍵⍵⊣''                         ⍝ source code
+     0⊣⎕PROFILE¨'clear' 'start':             ⍝ clear and start profiling
+     ⍺←⊢ ⋄ rslt←⍺ ⍺⍺ ⍵                       ⍝ *** apply function ⍺⍺ ***
+     data _←⎕PROFILE¨'data' 'clear'          ⍝ profiling matrix
+     names lines visits times←4↑↓⍉data       ⍝ interesting columns
+     full←{'.'∊⍵:⍵ ⋄ (⍕⎕THIS),'.',⍵}         ⍝ space-qualified names
+     prof←names∊full¨⍬⍴⎕SI                   ⍝ lines from this operator
+     totl←+/(prof⍱lines∊⊂⍬)/times            ⍝ total time for ⍺ ⍺⍺ ⍵
+     1:shy←rslt⊣code{                        ⍝ for each function of interest:
+         rows←1∘↓(names∊⊂⍵)∘/                ⍝ row selection for this function
+         pcent←⌊0.5+100×(rows times)÷totl    ⍝ percentages of execution times
+         col←⊣@(⎕IO+rows lines)∘(' '⊣¨⍳≢⍺)   ⍝ value or blank per function line
+         tot←⊣@(⊃⌽⍳≢⍺)                       ⍝ last row is: = total-percent
+         zap←' '@(0=⊢)                       ⍝ blanks for zeros
+         vcol←'='tot col rows visits         ⍝ number-of-line-visits column
+         tcol←(+/pcent)tot zap col pcent     ⍝ time-percentages column
+         trim←{r c←⍴⍵ ⋄ (r,c⌊⎕PW)↑⍵}         ⍝ truncated at print-width
+         ⊢⎕←trim⍕vcol,tcol,⍺                 ⍝ display profile; return result
+     }∘full¨⊆⍵⍵⊣''                           ⍝ ⍵⍵ is list of function names
+ }

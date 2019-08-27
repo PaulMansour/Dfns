@@ -1,0 +1,9 @@
+ ssword←{⎕ML←1                   ⍝ Approx alternative to xutils' ss.
+     srce find repl←,¨⍵          ⍝ source, find and replace vectors
+     alph←{(0≤⎕NC⍪⍵)/⍵}⎕AV~'⍺⍵∇' ⍝ primary alphabet: initial letters for names
+     supp←⎕D                     ⍝ supplementary: 0-9
+     ⍺←alph supp                 ⍝ default left argument
+     ∊(⊂repl)@{                  ⍝ replace find with repl
+         ⍵∊⊂find                 ⍝ matches
+     }⍺ words srce               ⍝ source into words.
+ }

@@ -1,0 +1,20 @@
+ wspan←{                             ⍝ Spanning tree for weighted graph ⍺ from ⍵.
+     graph costs←↓⍺                  ⍝ graph structure and costs.
+     tree←¯1⊣¨graph                  ⍝ initial spanning tree.
+     cost←(⌊/⍬)×⍵≠⍳⍴costs            ⍝ cost to reach each vertex.
+     I←⊃¨∘⊂                          ⍝ helper function: ⍺th items of ⍵
+     ⍵{                              ⍝ from starting vertex.
+         tree cost←⍵                 ⍝ current tree and costs
+         ⍺≡⍬:tree                    ⍝ all vertices visited: done
+         adjv←⍺ I graph              ⍝ adjacent vertices
+         accm←⍺ I cost+costs         ⍝ cumulative cost via this vertex
+         mask←accm<adjv I¨⊂cost      ⍝ mask of better routes
+         cvec←⊃,/mask/¨accm          ⍝ cost vector
+         next←mask/¨adjv             ⍝ next vertices to visit
+         back←⊃,/⍺+0×next            ⍝ back links to parent node
+         decr←(⍒cvec)I⊢              ⍝ in decreasing order of cost
+         wave←decr↑,/next            ⍝ vertex wave front
+         new←back cvec decr⍨@wave¨⍵  ⍝ successor tree & cost
+         (∪wave)∇ new                ⍝ wave spreads to adjacent vertices
+     }tree cost                      ⍝ initial spanning tree and cost vectors
+ }

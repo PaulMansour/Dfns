@@ -1,0 +1,10 @@
+ stdists←{                   ⍝ Spanning-tree path lengths.
+     tree←⍵                  ⍝ spanning tree
+     0{                      ⍝ distance from root
+         next dvec←⍵         ⍝ chldren and distance vector
+         next≡⍬:dvec         ⍝ no children: finished
+         ∆dvec←⍺@next⊢dvec   ⍝ extended distance vector
+         ∆next←⍸tree∊next    ⍝ grandchildren
+         (⍺+1)∇ ∆next ∆dvec  ⍝ examine rest of tree
+     }(⍵⍳¯1)(⍵⊢¨¯1)          ⍝ starting vertex and initial distances
+ }

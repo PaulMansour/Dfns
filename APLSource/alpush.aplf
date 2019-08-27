@@ -1,0 +1,3 @@
+ alpush←{        ⍝ Association list ⍺ prefixed with (key value) pair ⍵.
+     ⍺,⍨∘⊂¨⍵     ⍝ :: list ← list ∇ key val
+ }

@@ -1,0 +1,4 @@
+ alset←{                     ⍝ Assoc list ⍺ with (key value) pair ⍵ replaced.
+     key val←⍵               ⍝ key and new value
+     {(⊂val)@(⍺⍳⊂key)⊢⍵}\⍺   ⍝ :: list ← list ∇ key value
+ }

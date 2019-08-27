@@ -1,0 +1,197 @@
+ defs←{⎕ML←1                                 ⍝ ]defs with names.
+
+     ⍺←0 0 ⎕THIS ⋄ ⍺{⍎⍺,'⍵'}{                ⍝ default switches ⋄ external ⍎
+
+         _n _l NS←¯3↑⍺,(≢⍺)↓0 0 ⎕THIS        ⍝ switches: -names, -list, namespace
+
+         X←NS.⍺⍺∘⊢                           ⍝ external ⍎ avoids name clashes
+         kinds←3 4,(2=|_n)/2 9               ⍝ kinds: include arrays if -n=all
+         ⍵≡⊂'':⍺ ∇~∘' '¨↓'⎕nl'X kinds        ⍝ all fns and ops by default
+         ⍵≡0⍴⊂'':↑⍵                          ⍝ empty namespace: empty list
+
+         nabs←{                              ⍝ name abstraction:
+
+             names←{                         ⍝ names for values in defns
+                 dord←⍋|≡∘(⊃⌽)¨⍵             ⍝ definition depth order
+                 tabs←⊃subs⍨/⍵[dord],⊂''     ⍝ tuples with names for values
+                 tabs[⍋dord]                 ⍝ defns in original order
+             }⍣((_n≠0)∨_l=¯1)                ⍝ :: NKTDs ← ∇ NKTDs
+
+             single←{Ns Ks Ts Ds←↓⍉↑⍵        ⍝ filter for single-line definitions
+                 d1s←Ts{                     ⍝ single-line defs
+                     1<≢↓⍵:0                 ⍝ multi-line component: no
+                     0=≡⍺:1                  ⍝ atom: yes
+                     ∧/⍺ ∇¨⍵                 ⍝ otherwise: test each component
+                 }¨Ds                        ⍝ for each type/defn
+                 (d1s>Ks=9)/⍵                ⍝ single and not namespace
+             }                               ⍝ :: NKTDs ← ∇ NKTDs
+
+             subs←{N K T D←⍵                 ⍝ names for subexpressions
+                 Ns Ks Ts Ds←↓⍉↑⍺            ⍝ already processed definitions
+                 vecs←{(1=≡¨⍵)/⍵}            ⍝ dervs are vectors
+                 dfns←(⊃¨Ds)∊'{'             ⍝ don't search dfns
+                 vars←Ks=2                   ⍝ don't search vars
+                 keep←~dfns∨vars             ⍝ search filter
+                 hits←vecs D in keep/¨Ds     ⍝ defn in subexpressions
+                 Ts_Ds←(⊂¨K N)⊣@hits¨Ts Ds   ⍝ names for subexpressions
+                 (⊂⍵),↓⍉↑Ns Ks,Ts_Ds         ⍝ accumulated reduced defns
+             }                               ⍝ :: NKTDs ← NKTDs ∇ N K T D
+
+             nktds←{Ns Ks Ts Ds←↓⍉↑⍵         ⍝ (name kind tree defn) tuples
+                 deps←|≡¨Ds                  ⍝ definition depths
+                 _n<0:(deps≤|≡⍺)/⍵           ⍝ defns no deeper than given defn
+                 (deps≤⌈/(Ns∊⍺)/deps)/⍵      ⍝ defns no deeper than targets
+             }⍣(_l≠¯1)∘{                     ⍝ refined components unless -refs
+                 Ns←~∘' '¨↓'⎕nl'X ⍵          ⍝ all names of class ⍵
+                 Ks←'⎕nc'X↑Ns                ⍝ all kinds (2 3 4)
+                 ds←Ks prep¨'⎕cr¨'X Ns       ⍝ all defns of fns and ops
+                 v←1↓'⍎⍕'X 0,(Ks∊2 9)/Ns     ⍝ values of named arrays (vars)
+                 Ds←v@{Ks∊2 9}⊢ds            ⍝ all definitions
+                 Ts←Ks ktree¨Ds              ⍝ kind-trees
+                 grps←⊢∘⊂⌸Ds                 ⍝ groups of identical defns
+                 uniqs←∊(1=≢¨grps)/grps      ⍝ indices of unique values
+                 uvals←(⍳≢Ns)∊uniqs          ⍝ mask of unique values
+                 uvals/↓⍉↑Ns Ks Ts Ds        ⍝ unique names kinds trees defns
+             }                               ⍝ :: NKTDs ← ∇ [K]
+
+             prep←{                          ⍝ preparation of ⎕cr forms
+                 ⍺∊0 2 9:⍵                   ⍝ array operand: ignore
+                 0=≡⍵:⍵                      ⍝ atom: done
+                 6=10|⎕DR ⍵:⍺ ∇¨⍵            ⍝ nested: perhaps eg: 1+⊢
+                 1<≢↓⍵:↑(⊂⍺ ∇⊃↓⍵),1↓↓⍵       ⍝ multi-line fn: without 'name←'
+                 1 1≡(≡⍵),⍴⍵:⊃⍵              ⍝ named primitive fn: disclose
+                 mask←'←{'⍷⍵                 ⍝ named dfn←{... ?
+                 ~∨/mask:⍵                   ⍝ nope: ignore
+                 1↓,(,∨\mask)/⍵              ⍝ without 'name←'
+             }                               ⍝ :: D ← K ∇ D
+
+             ktree←{⍺∊2 9:⍺                  ⍝ kind-tree: array:2 fun:3 op:4  <V>
+
+                 kind←{                      ⍝ kind of expr such as '{⍺⍺ ⍵}'
+                     ~0=10|⎕DR ⍵:2           ⍝ not of type char: array
+                     (⎕NS'').{               ⍝ assignment in sandbox for ⍎
+                         0⊣⎕EX zz←'zz':      ⍝ make _local_ name zz
+                         2 6::2              ⍝ undefined: array
+                         ⍎'zz←',(,⍵),'⋄0':   ⍝ assign name to expr
+                         ⊃⎕NC'zz'            ⍝ name class: 2 3 4
+                     }⍵
+                 }                           ⍝ :: K ← ∇ D
+
+                 {                           ⍝ kind classification ---------.
+                     0≠10|⎕DR ⍵:2            ⍝ not char type: array         |
+                     (⊂⍵)∊'.∘⍣@⌺⍠⍤[':4       ⍝ primitive dyadic op: 4
+                     (⊂⍵)∊'/⌿\⍀':1           ⍝ primitive hybrid: =1 for now
+                     (⊂⎕CR ⍵)∊,¨'/⌿\⍀':1     ⍝ named hybrid
+                     (⊂⍵)∊'←→;':2            ⍝ must be an array operand
+                     4=⎕NC ⍵:4               ⍝ named operator
+                     kind ⍵                  ⍝ expression class
+                 }{                          ⍝ derv traversal --------------.
+                     0=≡⍵:⍺⍺ ⍵               ⍝ atom: classification         |
+                     1<≢↓⍵:2                 ⍝ high rank: array
+                     h←{⍵+(⍵∊1)×(≢⍵)↑2 3}    ⍝ hybrid resolution: 1 → 3 or 4
+                     o←{⍵≡4 4:2 4 ⋄ ⍵}       ⍝ for Aaron's dop3←'∘'_set
+                     6=10|⎕DR ⍵:o h ∇¨⍵      ⍝ nested: traversal
+                     '{'≡⊃⍵:kind ⍵           ⍝ dfn/op
+                     1<⍴⍴⍵:2                 ⍝ high rank => array
+                     1=≢⍵:o h ∇⊃⍵            ⍝ ⎕cr of primitive token
+                     3<≢⍵:2                  ⍝ too long for derv => array
+                     (kind ⍵)∊0 2:2          ⍝ character literal
+                     o h ∇¨⍵                 ⍝ traversal of subdervs
+                 }⍵                          ⍝ for derv tree ⍵
+             }                               ⍝ :: T ← ∇ D
+
+             curry←{N K T D←⍵                ⍝ adjust for right-operand currying
+                 N K,T{                      ⍝ rebinding of tree and defn
+                     ⍺≡⊃⍺:⍺ ⍵                ⍝ simple type: done
+                     3≢≢⍺:↓⍉↑⍺ ∇¨⍵           ⍝ not a 3-tuple: continue
+                     4≢⊃1↓⍺:↓⍉↑⍺ ∇¨⍵         ⍝ not a dyadic operator: continue
+                     cur←{l d r←⍵ ⋄ l(d r)}  ⍝ curry: lft dop rgt → lft(dop rgt)
+                     ↓⍉↑(cur ⍺)∇¨cur ⍵       ⍝ dyadic operator: curry & continue
+                 }D                          ⍝ kind and defn trees
+             }                               ⍝ :: NKTDs ← ∇ NKTDs
+
+             single names curry¨⍺ nktds ⍵    ⍝ (name kind tree defn) tuples
+         }                                   ⍝ :: NKTDs ← ∇ [T]
+
+         expr←{T D←⍵                         ⍝ expression from nested defns
+             T≡2:crep D                      ⍝ array operand
+             T≡⊃T:⍕,D                        ⍝ single item: format
+             pp←{∊⍺ 1 ⍺/'('⍵')'}             ⍝ parenthesised if ⍺
+             4≡⊃T:⍺ pp⊃join/0 1 ∇¨↓⍉↑⍵       ⍝ dop: parenthesised right operand
+             exp←{4≢⊃⊃1↓⍵}¨T                 ⍝ train-tines requiring parens
+             pns←(¯1↓0≠≡¨T),0                ⍝ leading non-simple tines
+             ⍺ pp⊃join/(pns∧exp)∇¨↓⍉↑⍵       ⍝ joined with parentheses ⍺
+         }                                   ⍝ :: ⍞ ← parens ∇ T D
+
+         crep←{                              ⍝ char rep of array
+             9=⎕NC'⍵':⍕⍵                     ⍝ '#.space'
+             fmt←⎕SE.Dyalog.Utils.repObj     ⍝ Utils.repObj: char rep array
+             80≠⎕DR' ':fmt ⍵                 ⍝ non-unicode interpreter
+             1<⍴⍴⍵:fmt ⍵                     ⍝ higher rank
+             1<≢⎕FMT ⍵:fmt ⍵                 ⍝ multi-line, embedded newline?
+             1<|≡⍵:fmt ⍵                     ⍝ nested
+             1=2|⎕DR ⍵:⍕⍵                    ⍝ numeric literal
+             0≠10|⎕DR ⍵:fmt ⍵                ⍝ not char literal
+             2='⎕nc'X ⍵:⍵                    ⍝ named array
+             '''',((1+⍵='''')/⍵),''''        ⍝ quotes: don't → 'don''t'
+         }                                   ⍝ :: ⍞ ← ∇ array
+
+         join←({(0≤⎕NC⍪⍵)/⍵}⎕AV~'⍺⍵∇'){      ⍝ join of expressions
+             gap←∧/(⍺ adj ⍵)∊⍺⍺,'¯',⎕D       ⍝ gap required between words ⍺ ⍵
+             ∊1 gap 1/⍺' '⍵                  ⍝ separated sections
+         }                                   ⍝ :: expr ← expr ∇ expr
+
+         adj←(⊢/⊣),(⊣/⊢)                     ⍝ adjoining: last of ⍺, first of ⍵
+         name←{' '~⍨(∧\'←'≠⍵)/⍵}             ⍝ name from defn
+
+         redef←∇{                            ⍝ redefinition: ]defs name ← defn
+             (0 0⍴'')⊣{                      ⍝ null result
+                 ¯2↓'⍎'X ⍵,'⋄⍵'              ⍝ re-assignment of dependent defns
+             }¨⍺⍺{                           ⍝ for self and each dependent
+                 defns←2 ¯1 NS ⍺⍺⊂name ⍵     ⍝ 2 ¯1 → all names; -refs display
+                 (⊂⍵),1↓↓defns               ⍝ new and dependent definitions
+             }⍵                              ⍝ eg 'plus ← -∘-'
+         }                                   ⍝ :: [defn;] ← ∇ defn
+
+         tree←{                              ⍝ indented calling/called-by tree
+             0=≢list←⍺∩names←name¨⍵:0⍴⊂''    ⍝ name list: quit if none found
+             flip←{(↓⍉↑names∘∊¨⍵)/¨⊂names}R  ⍝ called-by graph if -refs
+             refs←flip∩∘names¨1 externs¨⍵    ⍝ external names per definition
+             root←names⍳(list~⊃,/refs)∪list  ⍝ connections to name(s) in list
+             graph←1+(⊂root),names∘⍳¨refs    ⍝ function-calling graph
+             dfs←{⊃∇⍨/⌽(⊂⍺ ⍺⍺ ⍵),⍺ ⍵⍵ ⍵}     ⍝ depth-first search
+             accm←{⍺,(⍺ new ⍵)/T⊂⍵}          ⍝ collected lines and tab values
+             subs←{(⍺ new ⍵)/T⊃next/⍵}       ⍝ unvisited edges
+             new←{~(⊃⍵)∊⊃¨⍺}T                ⍝ node unvisited?
+             next←{(⍺⊃graph),¨⍵+2}           ⍝ definition index and indent
+             srch←accm dfs subs              ⍝ depth-first search
+             ix ds←↓⍉↑1↓¯1+⍬ srch 2↑⍳1       ⍝ indices and depths, without root
+             uniq←⌽{(⍵⍳⍵)=⍳⍴⍵}⌽ix            ⍝ mask of unique defns
+             uniq/(ds⍴¨' '),¨⍵[ix]           ⍝ unique tabbed definitions
+         }                                   ⍝ :: [defn] ← [name] ∇ [defn]
+
+         dervs←{                             ⍝ dervs-only filter for -refs
+             kinds←'⎕nc'X name¨⍵             ⍝ definition kinds
+             (kinds∊2.1 3.3 4.3)/⍵           ⍝ omitting dfns and tfns
+         }                                   ⍝ :: [defn] ← ∇ [defn]
+
+         '←'∊⊃⍵:redef⊃⍵                      ⍝ eg: ]defs add ← -∘-
+         NKTDs←⍵ nabs kinds                  ⍝ (name kind tree defn) tuples
+         0=≢NKTDs:0 0⍴''                     ⍝ no good defns: empty display
+         Ns Ks Ts Ds←↓⍉↑NKTDs                ⍝ Names Kinds Trees Defns
+         _n<0:(('⎕cr¨'X Ns)⍳⍵)⊃Ds,⍵          ⍝ no formatting: defn tree
+         exprs←0 expr¨¯2↑¨NKTDs              ⍝ parenthesised exprs
+         just←{↓⌽↑⌽¨⍵}⍣(_l=0)                ⍝ (right-justified) names column
+         defns←(just Ns),¨(⊂' ← '),¨exprs    ⍝ name ← defn ...
+         trim←{(∨\∨⌿⍵≠' ')/⍵}{⌽⍺⍺⌽⍺⍺ ⍵}      ⍝ without outer blank columns
+         _l=0:trim↑(defns,⊂'')[Ns⍳⍵]~⊂''     ⍝ alphabetic order
+         R←⍣(_l≡¯1) ⋄ T←⍣(_l≡1)              ⍝ if -refs or if -topdown
+         trim↑⍵ tree dervs R defns           ⍝ calling or called-by tree
+     }⊆⍵                                     ⍝ :: [';] ← switches (X ∇∇) names
+
+    ⍝ NKTDs := [N K T D]                    ⍝ vector of 4-tuples
+    ⍝     N := ⍞                            ⍝ Name: char vector
+    ⍝     K := 2 | 3 | 4                    ⍝ Kind: (class)
+    ⍝     T := K | [T]                      ⍝ Tree: nested kinds
+    ⍝     D := ' | [D]                      ⍝ Defn: nested ⎕CR vectors
+ }

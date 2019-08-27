@@ -1,0 +1,65 @@
+ H←{                                     ⍝ Quaternion arithmetic
+
+     monadic←{                           ⍝ monadic functions:
+         '+'≡⍺⍺:conj ⍵                   ⍝ +⍵ conjugate
+         '-'≡⍺⍺:-⍵                       ⍝ -⍵ negative
+         '×'≡⍺⍺:unit ⍵                   ⍝ ×⍵ direction
+         '÷'≡⍺⍺:recip ⍵                  ⍝ ÷⍵ reciprocal
+         '|'≡⍺⍺:norm ⍵                   ⍝ |⍵ magnitude
+         ⎕SIGNAL 16                      ⍝    not for the nonce
+     }                                   ⍝ :: H ← (fn ∇∇) H
+
+     dyadic←{                            ⍝ dyadic functions:
+         '+'≡⍺⍺:⍺+Q ⍵                    ⍝ ⍺+⍵ sum
+         '-'≡⍺⍺:⍺-Q ⍵                    ⍝ ⍺-⍵ difference
+         '×'≡⍺⍺:⍺ mul ⍵                  ⍝ ⍺×⍵ product
+         '÷'≡⍺⍺:⍺ mul recip ⍵            ⍝ ⍺÷⍵ right quotient
+         '⌽'≡⍺⍺:⍺ rot ⍵                  ⍝ ⍺⌽⍵ ⍺-rotation
+         ⎕SIGNAL 16                      ⍝     not for the nonce
+     }                                   ⍝ ::  H ← H (fn ∇∇) H
+
+     mul←{                               ⍝ product ⍺×⍵
+         (a b)(c d)←1⊂¨⍺ ⍵               ⍝ Cayley-Dixon
+         ⊃,/((a×c)-b×+d)((d×a)+b×+c)     ⍝   product
+     }                                   ⍝ :: H ← H ∇ H
+
+     rot←{                               ⍝ ⍺-rotation of points ⍵
+         a i j k←R ⍺                     ⍝ rotation angle and direction
+         u←i j k÷vlen i j k              ⍝ unit 3-vector: direction
+         q←C(2○a÷2),u×1○a÷2              ⍝ rotation quarternion scalar q
+         q mul ⍵ mul conj q              ⍝ q×⍵×q*
+     }                                   ⍝ :: H ← H ∇ H
+
+     unit←{⍵÷2 0/norm ⍵}                 ⍝ ×⍵ direction
+     conj←↑((+⊣),(-⊢))/                  ⍝ +⍵ conjugate
+     recip←{(conj ⍵)÷2 0/(norm ⍵)*2}     ⍝ ÷⍵ reciprocal
+     norm←{(vlen|⍵)∘.×1 0}               ⍝ |⍵ magnitude
+     vlen←{(+/⍵*2)*0.5}                  ⍝    scalar length of vector ⍵
+
+     C←{J/2 2⍴(⍤1)⍵}                     ⍝ complex (S,2)-matrix from real (S,4)-
+     R←{,⍤2⊢9 11∘.(○⍨)⍨⍵}                ⍝ R 3J4 → 3 4  real parts
+     J←{⍺+⍵×0J1}                         ⍝ 3 J 4 → 3J4
+     Q←⍤1                                ⍝ quaternion-wise
+
+     ∆←⍺⍺{∆←⍺⍺∘⊢ ⋄ ⊃⎕CR'∆'}⍬             ⍝ single char operand fn: '+' '-' ...
+     0≠⎕NC'⍺':R(C ⍺)(∆ dyadic)C ⍵        ⍝ dyadic operand fn
+     ~∆∊'⍎⍕':R(∆ monadic)C ⍵             ⍝ monadic operand fn, except ⍎ or ⍕
+
+     '⍎'≡∆:{                             ⍝ input conversion '1i2j3k4' → 1 2 3 4
+         quat←{(' ijk'∊⊃¨⍵)\⍎⍕1↓¨⍵}      ⍝ numeric 4-tuple from charcter vector
+         segs←{(⍵∊' ijk')⊂⍵}' '∘,        ⍝ i-j-k-separated parts of H-item
+         items←{~∘(⊂'')⊢' 'split' ',⍵}   ⍝ blank-separated number
+         split←{1↓¨(⍺=⍵)⊂⍵}              ⍝ ⍺-split of ⍵
+         ↑∘(quat∘segs¨)∘items Q ⍵        ⍝ conversion to (S,4)-array
+     }⍵                                  ⍝ :: [# # # #] ← ∇ ⍞
+
+     '⍕'≡∆:{                             ⍝ output conversion 1 2 3 4 → '1i2j3k4'
+         trim←{0 2↓¯1⌽(~1 1⍷∧⌿⍵=' ')/⍵}  ⍝ without superfluous blank columns
+         align←{((pads ⍵~¨' ')⍴¨' '),¨⍵} ⍝ i-aligned quaternion numbers
+         pads←{-⍵-Q⌈⌿⍵}{⌊/¨⍵⍳¨⊂'ijk'}    ⍝ padding to align imaginary part
+         pref←{1↓∊⍵ head' ijk',∘⍕¨⍵}     ⍝ i j k component prefixes
+         head←{∊(1,1↓0≠⍺)/⍵}             ⍝ without trailing 0 components
+         dp←{(10*-⍺)×⌊0.5+⍵×10*⍺}        ⍝ rounded to ⍺ decimal places
+         trim ⎕FMT align↓pref Q 10 dp ⍵  ⍝ character matrix format of ⍵
+     }⍵                                  ⍝ :: [';] ← ∇ [# # # #]
+ }

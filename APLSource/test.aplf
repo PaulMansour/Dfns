@@ -1,0 +1,126 @@
+ test←{                                  ⍝ Run test script: no news => good news.
+     ⍺←'q' ⋄ Alpha←⍺                     ⍝ default: don't show progress
+     (1<≢⍺)∧'e'∊⍺:'e'(⍺~'e')∇¨⊂⍵         ⍝ edit 'n run: edit first, then run
+     0=⎕NC'⍙⍙⍙':⍺{⍙⍙⍙←⍬ ⋄ ⍎'⍺ test ⍵'}⍵  ⍝ initialised been-here-before list: ⍙⍙⍙
+     2=⍴⍴⍵:⍺∘∇¨~∘' '¨↓⍵                  ⍝ matrix: each row is a script
+     2=|≡⍵:⍺∘∇¨⍵                         ⍝ nested: test each script
+     (⊂⍵)∊⍙⍙⍙:ok←1 ⋄ ⍙⍙⍙,←⊂⍵             ⍝ been-here-before: skip else continue
+     All←{('_'≠⊣/⍵)⌿⍵}' ',⍨scripts.⎕NL 2 ⍝ list of non-hidden scripts
+     'e' ''≡⍺ ⍵:⍺ ∇(10⌊≢All)↑All         ⍝ edit max 10 scripts
+     ⍵≡'':⍺ ∇ All                        ⍝ null: test all scripts
+     1∊⍺∊'Ee':'→'scripts.⎕ED ⍵           ⍝ 'e'test ... => edit script
+     1∊⍺∊'Ll':⍵                          ⍝ 'l'test ... => LIB
+     ext←(1++/∧\~⊃⎕STATE'⍙⍙⍙')∘(86⌶)     ⍝ external-to-test execute
+     tmp←ext'⎕NS ⎕NL 3 4 9'              ⍝ tmp space for evaluation
+     tmp.Alpha←⍺                         ⍝ handy when script calls test
+
+     tag scr←scripts.{                   ⍝ name and content of script
+         2=⎕NC ⍵:⍵(⍎⍵)                   ⍝ var: name and content
+         ⊂0/⎕←'Can''t find scripts.',⍵   ⍝ undefined: complain
+     }⍵
+     tag≡'':ok←0                         ⍝ bad script name
+     ⎕IO ⎕ML ⎕RL←0 1 16807               ⍝ local envt for test fn
+
+     exec←{                              ⍝ execute script lines in tmp space
+         0=⍴⍵:⍺                          ⍝ no more, finished
+         oqt⊃⍵:⍺ ∇(nljn/2↑⍵),2↓⍵         ⍝ accumulation of multi-line char vects
+         ⎕←show⊃⍵                        ⍝ show expression
+         exp←unc⊃⍵                       ⍝ uncommented first line
+         ':'=⊃exp~' ':⍺ ∇ 1↓exp ctrl ⍵   ⍝ :keyword processing
+         ''≡exp~' ':⍺ ∇ 1↓⍵              ⍝ ignore blank line
+         1∊'←{'⍷unq exp:⍺ ∇ dfn ⍵        ⍝ make local dfn
+         act←{                           ⍝ actual result
+             disp⍣(1<|≡⍵)⊢⍵              ⍝ boxed if nested
+         }{                              ⍝ raw result:
+             0::(⍕⎕EN),'::',(⊃⎕DM)~'⍎'   ⍝ show error number and message
+             85::↑0↑1↓⍵                  ⍝ shy/no result: ok
+             ⎕IO ⎕ML ⎕RL←1 1 16807       ⍝ reset for ##.test case
+             ']'≡⊃exp~' ':tmp ucmd exp   ⍝ ]user command:
+             1(tmp.(85⌶))exp             ⍝ execute expr in tmp space
+         }⍵
+         ok rem←act check 1↓⍵            ⍝ check against expected result
+         (⍺∧ok)∇ rem                     ⍝ check remaining script
+     }
+
+     ucmd←{                              ⍝ ]user command:
+         cmd←'''',⍵,''''                 ⍝ quoted for 85⌶
+         1(⍺.(85⌶))'⍺ ⎕SE.UCMD',cmd      ⍝ result from UCMD processor
+     }
+
+     check←{                             ⍝ check expected vs. actual result
+         act←↓tmp.⎕FMT ⍺                 ⍝ actual result
+         exp←(⍴act)↑⍵                    ⍝ expected result
+         clipped←{⍵[;⍳⎕PW⌊⊃⌽⍴⍵]}         ⍝ clipped at screen width
+         lfts←{(∨⌿∨\⍵≠' ')/⍵}            ⍝ left shift of char matrix
+         match←{≡/lfts∘↑¨⍺ ⍵}            ⍝ match aligned results
+         act match exp:{                 ⍝ match: continue
+             ⎕←clipped show↑exp          ⍝ show (indented) result
+             1,⊂(⍴act)↓⍵                 ⍝ ok; skip result lines
+         }⍵                              ⍝ from remainder of script
+         '∘'∊Alpha:∘                     ⍝ stop to examine exp vs act
+         ⎕←clipped show↑act              ⍝ show (exdented) wrong result
+         dexp dact←↑¨dots¨¨exp act       ⍝ dots for spaces in
+         ⎕←⎕FMT tag,⊂dexp'→'dact         ⍝ display of differences
+         _←ed act                        ⍝ optional script editing
+         0,⊂(⍴act)↓⍵                     ⍝ and continue
+     }
+
+     ctrl←{                              ⍝ :If :Else :End[If] :Return[If]
+         ko←⍺⍳':' ⋄ ks←(ko↓⍺)⍳' '        ⍝ keyword offset and size
+         kw←ks↑ko↓⍺                      ⍝ keyword
+         ':Return'≡kw:0/⍵                ⍝ Return: skip rest of script
+         ix←{⌊/(~∘' '∘unc¨top ⍺)⍳⍵}      ⍝ index of
+         top←{                           ⍝ top-level lines
+             sigs←3↑¨~∘' '¨⍵             ⍝ line signatures
+             hits←':If' ':En'∘.≡sigs     ⍝ :If and :End[If] lines
+             tops←{⍵∧¯1⌽⍵}2>-⌿+\hits     ⍝ mask of top-level lines
+             tops\tops/⍵                 ⍝ without inner ctrl structs
+         }
+         End←':End' ':EndIf'             ⍝ either spelling
+         skip←{(¯1+⍵ ix End)↓⍵}          ⍝ skip to :End
+         ':Else'≡kw:skip ⍵               ⍝ Else: skip to :End
+         (⊂kw)∊End:⍵                     ⍝ End: continue
+         true←tmp⍎∘⊢ks↓ko↓⍺              ⍝ bool result (⍎∘⊢ for kind colouring)
+         ':ReturnIf'≡kw:(~true)/⍵        ⍝ :ReturnIf true: return else continue
+         ':If'≡kw:{true:⍵                ⍝ :If true: carry on
+             end←⍵ ix End,⊂':Else'       ⍝ Else or End offset
+             tail←end↓⍵                  ⍝ remainder of script
+             tail⊣⎕←show⊃tail            ⍝ continue
+         }⍵
+     }
+
+     dfn←{                               ⍝ fix temp dfn
+         raw←unq∘unc¨⍵                   ⍝ raw code
+         depth←+\{⊃⌽-⌿+\'{}'∘.=⍵}¨raw    ⍝ {}-nesting depth per line
+         lines←1++/∧\×depth              ⍝ no of lines in defn
+         _←tmp.⎕FX↑lines↑⍵               ⍝ fix dfn in temp space
+         ⎕←show↑1↓lines↑⍵                ⍝ show dfn body
+         lines↓⍵                         ⍝ continue with remaining lines
+     }
+
+     ed←{                                ⍝ script correction with 's' option
+         ~1∊Alpha∊'Ss',¯3:0              ⍝ nope: continue
+         actual←'UnexpectedValue'        ⍝ caption for editor
+         script←'##.scripts.',tag        ⍝ name of script variable
+         qt←{'''',⍵,''''}                ⍝ aa → 'aa'
+         tfn←,⊂actual,'←edit ',actual    ⍝ tradfn waits for edit
+         tfn,←⊂'⎕ed',⍕qt¨actual script   ⍝ edit scripts
+         edit←+ ⋄ ⍎(⎕FX tfn),' ⍵'        ⍝ localise, fix and execute edit fn
+     }
+     dots←'·'@(' '=⊢)                    ⍝ dots for blanks in diff display
+     unq←{(~≠\''''=⍵){⍺\⍺/⍵}⍵}           ⍝ unquoted chars
+     oqt←{⊃⌽≠\''''=unc ⍵}                ⍝ line has open quote
+     unc←{(∧\'⍝'≠unq ⍵)/⍵}               ⍝ uncommented line
+     und←{(0=-⌿+\'{}'∘.=⍵){⍺\⍺/⍵}⍵}      ⍝ un-dfn-ed line
+     nls←⎕UCS 13 133                     ⍝ version-proof newlines
+     nest←{1↓¨(1,⍵∊nls)⊂' ',⍵}           ⍝ split line vector at nl char
+     nljn←{⍺,(⊃nls),⍵}                   ⍝ nl-join of char vectors
+     then←{(⍵⍵⍣(⍺⍺ ⍵))⍵}                 ⍝ conditional function application
+     bkt←{↑⍵{⍺,⍺⍺,⍵}/⍺}                  ⍝ ⍺-bracket
+     show←(1∊⍺∊'Vv',1)∘{↑⍺/↓⎕FMT ⍵}      ⍝ verbose: show progress
+     sname←'scripts.',⍵                  ⍝ script name
+     ⎕←show(-⎕PW)↑(⎕PW⍴'⍝'),' ',sname    ⍝ show script name if verbose
+     stamp←{timestamp'dfns','.dws ',⍺}   ⍝ timestamp for overnight batch jobs
+     ⎕←⍵ stamp⍣('⎕'∊Alpha)⊢0 0⍴0         ⍝ optional display of script name
+     1:ok←1 exec{1=≡,⍵}then nest scr     ⍝ shy result of executed script
+ }

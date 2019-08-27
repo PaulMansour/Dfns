@@ -1,0 +1,11 @@
+ mdf←{                                       ⍝ Line hits for function ⍺⍺.
+     name←⍺⍺¨{ff←⍺⍺ ⋄ (⍕⎕OR'ff')~'∇ ¨'}⍬     ⍝ deduce name of operand fn
+     _←⎕PROFILE¨'clear' 'start'              ⍝ initialise profilng
+     ⍺←⊢ ⋄ _←⍺ ⍺⍺ ⍵                          ⍝ apply function
+     data _←⎕PROFILE¨'data' 'clear'          ⍝ profiling data for ⍺⍺
+     base←{(⌽∧\⌽⍵≠'.')/⍵}                    ⍝ a.b.fn → fn
+     rows←((base¨⊣/data)∊⊂name)⌿data         ⍝ profile rows for subject fn
+     lines count←1↓¨1↓3↑↓⍉rows               ⍝ lines visited and hit-count
+     code←⎕CR name                           ⍝ source code for ⍺⍺
+     (count@(lines+⎕IO)⊢0⊣¨↓code),code       ⍝ hits followed by source.
+ }
