@@ -1,4 +1,5 @@
  fnrepl←{                                    ⍝ Function string replacement.
+  ⍝⍀ Junk asdf asd fasdfasdf
      ⍺←⎕THIS                                 ⍝ default current space.
      1:shy←{⍵~⊂''}⍺.{                        ⍝ shy rslt: changed function list.
          (↓⎕NL 3 4){                         ⍝ target space, names of fns (and ops).
